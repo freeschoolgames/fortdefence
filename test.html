@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Fort Battle — connection test</title>
+<style>
+  body{font:14px/1.7 -apple-system,system-ui,sans-serif;background:#11151a;
+    color:#e8e4d9;padding:26px;margin:0}
+  h1{font-size:17px;letter-spacing:.06em;margin:0 0 4px}
+  .sub{color:#8b95a1;font-size:12px;margin-bottom:20px}
+  .box{background:#1a1f26;border:1px solid #2c3542;border-radius:10px;
+    padding:14px 16px;margin-bottom:10px}
+  .k{color:#c8912f;font-size:11px;letter-spacing:.16em;text-transform:uppercase}
+  .v{font-family:ui-monospace,Menlo,monospace;font-size:12px;word-break:break-all;
+    margin-top:5px}
+  .ok{color:#5fbf76} .bad{color:#e2705a} .wait{color:#8b95a1}
+</style></head>
+<body>
+<h1>Fort Battle connection test</h1>
+<div class="sub">Nothing here touches your Firebase project. It only checks
+  whether this browser can load the SDK at all.</div>
+
+<div class="box"><div class="k">1 · How this page was opened</div>
+  <div class="v" id="origin">…</div></div>
+<div class="box"><div class="k">2 · Module import</div>
+  <div class="v wait" id="mod">testing…</div></div>
+<div class="box"><div class="k">3 · Plain fetch of the same file</div>
+  <div class="v wait" id="net">testing…</div></div>
+<div class="box"><div class="k">Verdict</div>
+  <div class="v" id="verdict">…</div></div>
+
+<script type="module">
+const $ = id => document.getElementById(id);
+const URLBASE = 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
+
+// 1. origin
+const proto = location.protocol;
+const isFile = proto === 'file:';
+$('origin').textContent = location.href;
+$('origin').className = 'v ' + (isFile ? 'bad' : 'ok');
+
+// 2. dynamic import — the thing that is actually failing in the game
+let modOk = false, modErr = '';
+try {
+  const m = await import(URLBASE);
+  modOk = typeof m.initializeApp === 'function';
+  $('mod').textContent = modOk ? 'OK — initializeApp found' : 'loaded but empty';
+  $('mod').className = 'v ' + (modOk ? 'ok' : 'bad');
+} catch(e){
+  modErr = e && e.message ? e.message : String(e);
+  $('mod').textContent = 'FAILED — ' + modErr;
+  $('mod').className = 'v bad';
+}
+
+// 3. plain fetch: separates "cannot reach it" from "cannot import it"
+let netOk = false;
+try {
+  const r = await fetch(URLBASE, { mode:'cors' });
+  netOk = r.ok;
+  $('net').textContent = 'HTTP ' + r.status + (r.ok ? ' — reachable' : '');
+  $('net').className = 'v ' + (r.ok ? 'ok' : 'bad');
+} catch(e){
+  $('net').textContent = 'FAILED — ' + (e.message || e);
+  $('net').className = 'v bad';
+}
+
+// verdict
+let v, cls;
+if(modOk){
+  v = 'This browser CAN load Firebase. The problem is elsewhere — send me the '
+    + 'exact red error from the game page console.';
+  cls = 'ok';
+} else if(isFile){
+  v = 'You opened this from the file system (file://). Cross-origin module '
+    + 'imports are blocked from a null origin. Serve the folder over http, or '
+    + 'use the GitHub Pages URL.';
+  cls = 'bad';
+} else if(netOk){
+  v = 'The file downloads but will not import as a module. That points at the '
+    + 'browser, not the network — try another browser to confirm.';
+  cls = 'bad';
+} else {
+  v = 'The file cannot be reached at all — something between you and '
+    + 'gstatic.com is blocking it (network, DNS, or a content blocker).';
+  cls = 'bad';
+}
+$('verdict').textContent = v;
+$('verdict').className = 'v ' + cls;
+</script>
+</body></html>
